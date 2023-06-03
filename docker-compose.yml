@@ -1,0 +1,48 @@
+version: '3.7'
+
+services:
+  customer_service:
+    build: ./customer_service
+    command: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+    volumes:
+      - ./customer_service/:/app/
+    ports:
+      - 8001:8000
+    environment:
+      - DATABASE_URL=postgresql://postgres:mysecretpassword@customer_db:5432/postgres
+    networks:
+      - app-network
+
+  customer_db:
+    image: postgres:12.1-alpine
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_customer_movie:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=mysecretpassword
+      - POSTGRES_DB=postgres
+      - LANG=en_US.utf8 
+      - POSTGRES_INITDB_ARGS="--locale-provider=icu --icu-locale=en_US"
+    depends_on:
+      - customer_service
+    networks:
+      - app-network
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./nginx_config.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - customer_service
+      - customer_db
+    networks:
+      - app-network
+volumes:
+  postgres_customer_movie:
+networks:
+  app-network:
+    driver: bridge
